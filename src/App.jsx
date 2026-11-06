@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, addDoc, onSnapshot, query, orderBy } from "firebase/firestore";
+import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query, orderBy } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAVN3D5bM7KfUA-jbuF1fiYd7k-soFPA_4",
@@ -57,6 +57,11 @@ function App() {
     
     setText('');
     setAmount('');
+  };
+
+  // 내역 삭제 함수 추가
+  const deleteTransaction = async (id) => {
+    await deleteDoc(doc(db, "transactions", id));
   };
 
   const filteredTransactions = transactions.filter(tx => tx.date.startsWith(currentMonth));
@@ -118,14 +123,22 @@ function App() {
 
         <ul style={{ listStyle: 'none', padding: 0 }}>
           {filteredTransactions.map(tx => (
-            <li key={tx.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px', borderBottom: '1px solid #eee' }}>
+            <li key={tx.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px', borderBottom: '1px solid #eee' }}>
               <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                 <span style={{ fontSize: '12px', backgroundColor: '#eee', padding: '3px 6px', borderRadius: '4px' }}>{tx.category}</span>
                 <span>{tx.text}</span>
               </div>
-              <span style={{ color: tx.type === 'income' ? 'blue' : 'red', fontWeight: 'bold' }}>
-                {tx.type === 'income' ? '+' : '-'}{tx.amount.toLocaleString()}원
-              </span>
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <span style={{ color: tx.type === 'income' ? 'blue' : 'red', fontWeight: 'bold' }}>
+                  {tx.type === 'income' ? '+' : '-'}{tx.amount.toLocaleString()}원
+                </span>
+                <button 
+                  onClick={() => deleteTransaction(tx.id)} 
+                  style={{ backgroundColor: '#ffcccc', border: 'none', borderRadius: '4px', padding: '4px 8px', cursor: 'pointer', fontSize: '12px' }}
+                >
+                  삭제
+                </button>
+              </div>
             </li>
           ))}
         </ul>
