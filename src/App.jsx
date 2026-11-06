@@ -15,7 +15,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// 오늘 날짜 구하기 (YYYY-MM-DD 형식)
 const getTodayDate = () => {
   const d = new Date();
   const year = d.getFullYear();
@@ -92,14 +91,12 @@ function App() {
     setCategory(tx.category);
     setText(tx.text);
     setAmount(tx.amount);
-    // 옛날 데이터(시간 포함)를 수정할 때도 연-월-일만 달력에 쏙 들어가도록 자르기
     setInputDate(tx.date.slice(0, 10));
     if(!isAllView) setCurrentMonth(tx.date.slice(0, 7));
   };
 
   const exportToCSV = () => {
     const headers = ['날짜', '구분', '분류', '내용', '금액(원)'];
-    // 엑셀 다운로드 시에도 시간 꼬리(T...) 떼고 날짜만 출력
     const csvData = displayedTransactions.map(tx => 
       `${tx.date.slice(0, 10)},${tx.type === 'income' ? '수입' : '지출'},${tx.category},"${tx.text}",${tx.amount}`
     );
@@ -174,13 +171,14 @@ function App() {
             </div>
           </div>
 
-          <div style={{ marginBottom: '15px', backgroundColor: '#ecfdf5', border: '1px solid #a7f3d0', padding: '15px', borderRadius: '4px', display: 'flex', flexWrap: 'wrap', gap: '20px', alignItems: 'center' }}>
-            <div style={{ width: '100px', height: '100px', borderRadius: '50%', background: pieBackground, flexShrink: 0, border: '1px solid #d1d5db', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }} />
-            <div style={{ flex: 1, display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+          {/* 파이 차트 및 통계 영역 (크기 대폭 축소) */}
+          <div style={{ marginBottom: '15px', backgroundColor: '#ecfdf5', border: '1px solid #a7f3d0', padding: '10px', borderRadius: '4px', display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center' }}>
+            <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: pieBackground, flexShrink: 0, border: '1px solid #d1d5db', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }} />
+            <div style={{ flex: 1, display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
               {expenseCategories.map(cat => (
-                <div key={cat} style={{ backgroundColor: '#fff', borderLeft: `4px solid ${expenseColors[cat]}`, padding: '6px 10px', borderRadius: '3px', flex: '1 1 100px', borderTop: '1px solid #e5e7eb', borderRight: '1px solid #e5e7eb', borderBottom: '1px solid #e5e7eb' }}>
-                  <span style={{ fontSize: '11px', color: '#4b5563', display: 'block', fontWeight: 'bold' }}>{cat}</span>
-                  <span style={{ fontSize: '13px', color: '#1f2937', fontWeight: 'bold' }}>{categoryTotals[cat].toLocaleString()}원</span>
+                <div key={cat} style={{ backgroundColor: '#fff', borderLeft: `3px solid ${expenseColors[cat]}`, padding: '4px 6px', borderRadius: '3px', flex: '1 1 65px', borderTop: '1px solid #e5e7eb', borderRight: '1px solid #e5e7eb', borderBottom: '1px solid #e5e7eb' }}>
+                  <span style={{ fontSize: '10px', color: '#4b5563', display: 'block', fontWeight: 'bold' }}>{cat}</span>
+                  <span style={{ fontSize: '11px', color: '#1f2937', fontWeight: 'bold' }}>{categoryTotals[cat].toLocaleString()}원</span>
                 </div>
               ))}
             </div>
@@ -242,7 +240,6 @@ function App() {
                   displayedTransactions.map(tx => (
                     <tr key={tx.id} style={{ borderBottom: '1px solid #e5e7eb', backgroundColor: editId === tx.id ? '#fffbeb' : 'transparent' }}>
                       <td style={{ padding: '8px 5px', color: '#4b5563', fontSize: '11px', whiteSpace: 'nowrap' }}>
-                        {/* 이 부분이 수정되었습니다! 무조건 5~10번째 글자(월-일)만 잘라옵니다 */}
                         {tx.date.slice(5, 10).replace('-', '.')} 
                         {isAllView && <div style={{fontSize: '9px', color: '#9ca3af'}}>{tx.date.slice(0, 4)}</div>}
                       </td>
