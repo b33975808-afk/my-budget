@@ -49,7 +49,6 @@ function App() {
     e.preventDefault();
     if (!amount || !category) return;
     
-    // 현재 보고 있는 월(currentMonth)의 1일 오전 9시 기준으로 날짜 설정 (시간 오차 방지)
     const targetDate = isAllView 
       ? new Date().toISOString() 
       : `${currentMonth}-01T09:00:00.000Z`;
@@ -168,20 +167,26 @@ function App() {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', textAlign: 'left' }}>
             <thead>
               <tr style={{ backgroundColor: '#f3f4f6', borderBottom: '2px solid #d1d5db', color: '#374151' }}>
-                <th style={{ padding: '10px', width: '20%' }}>분류</th>
-                <th style={{ padding: '10px', width: '45%' }}>내용</th>
-                <th style={{ padding: '10px', width: '25%', textAlign: 'right' }}>금액</th>
+                {isAllView && <th style={{ padding: '10px', width: '18%' }}>날짜(월)</th>}
+                <th style={{ padding: '10px', width: '18%' }}>분류</th>
+                <th style={{ padding: '10px', width: '40%' }}>내용</th>
+                <th style={{ padding: '10px', width: '24%', textAlign: 'right' }}>금액</th>
                 <th style={{ padding: '10px', width: '10%', textAlign: 'center' }}>비고</th>
               </tr>
             </thead>
             <tbody>
               {filteredTransactions.length === 0 ? (
                 <tr>
-                  <td colSpan="4" style={{ textAlign: 'center', padding: '20px', color: '#9ca3af' }}>내역이 없습니다.</td>
+                  <td colSpan={isAllView ? "5" : "4"} style={{ textAlign: 'center', padding: '20px', color: '#9ca3af' }}>내역이 없습니다.</td>
                 </tr>
               ) : (
                 filteredTransactions.map(tx => (
                   <tr key={tx.id} style={{ borderBottom: '1px solid #e5e7eb' }}>
+                    {isAllView && (
+                      <td style={{ padding: '10px', color: '#4b5563', fontSize: '13px', fontWeight: 'bold' }}>
+                        {tx.date ? tx.date.slice(0, 7) : '-'}
+                      </td>
+                    )}
                     <td style={{ padding: '10px' }}>
                       <span style={{ fontSize: '11px', backgroundColor: '#e5e7eb', padding: '2px 6px', borderRadius: '3px', color: '#374151', fontWeight: 'bold' }}>{tx.category}</span>
                     </td>
