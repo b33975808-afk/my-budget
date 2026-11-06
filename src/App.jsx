@@ -23,7 +23,7 @@ function App() {
   const [category, setCategory] = useState('식비'); 
   const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().slice(0, 7));
   const [isAllView, setIsAllView] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState('전체'); // 카테고리 필터 상태
+  const [selectedCategory, setSelectedCategory] = useState('전체');
 
   const expenseCategories = ['식비', '교통/차량', '주거/통신', '쇼핑/여가', '기타'];
   const incomeCategories = ['급여', '용돈', '부수입', '기타'];
@@ -49,12 +49,17 @@ function App() {
     e.preventDefault();
     if (!amount || !category) return;
     
+    // 현재 보고 있는 월(currentMonth)의 1일 오전 9시 기준으로 날짜 설정 (시간 오차 방지)
+    const targetDate = isAllView 
+      ? new Date().toISOString() 
+      : `${currentMonth}-01T09:00:00.000Z`;
+
     await addDoc(collection(db, "transactions"), {
       text: text || category,
       category,
       amount: parseFloat(amount),
       type,
-      date: new Date().toISOString()
+      date: targetDate
     });
     
     setText('');
@@ -65,12 +70,10 @@ function App() {
     await deleteDoc(doc(db, "transactions", id));
   };
 
-  // 1단계: 월별 또는 전체 기간 필터링
   let filteredTransactions = isAllView 
     ? transactions 
     : transactions.filter(tx => tx.date.startsWith(currentMonth));
 
-  // 2단계: 선택한 카테고리 필터링 (전체가 아닐 경우 해당 카테고리만 추출)
   if (selectedCategory !== '전체') {
     filteredTransactions = filteredTransactions.filter(tx => tx.category === selectedCategory);
   }
