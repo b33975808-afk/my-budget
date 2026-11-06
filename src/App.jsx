@@ -162,4 +162,47 @@ function App() {
           </form>
 
           {/* 내역 리스트 테이블 */}
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', textAlign:
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', textAlign: 'left' }}>
+            <thead>
+              <tr style={{ backgroundColor: '#f3f4f6', borderBottom: '2px solid #d1d5db', color: '#374151' }}>
+                <th style={{ padding: '10px', width: '20%' }}>분류</th>
+                <th style={{ padding: '10px', width: '45%' }}>내용</th>
+                <th style={{ padding: '10px', width: '25%', textAlign: 'right' }}>금액</th>
+                <th style={{ padding: '10px', width: '10%', textAlign: 'center' }}>비고</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredTransactions.length === 0 ? (
+                <tr>
+                  <td colSpan="4" style={{ textAlign: 'center', padding: '20px', color: '#9ca3af' }}>내역이 없습니다.</td>
+                </tr>
+              ) : (
+                filteredTransactions.map(tx => (
+                  <tr key={tx.id} style={{ borderBottom: '1px solid #e5e7eb' }}>
+                    <td style={{ padding: '10px' }}>
+                      <span style={{ fontSize: '11px', backgroundColor: '#e5e7eb', padding: '2px 6px', borderRadius: '3px', color: '#374151', fontWeight: 'bold' }}>{tx.category}</span>
+                    </td>
+                    <td style={{ padding: '10px', color: '#1f2937' }}>{tx.text}</td>
+                    <td style={{ padding: '10px', textAlign: 'right', fontWeight: 'bold', color: tx.type === 'income' ? '#047857' : '#dc2626' }}>
+                      {tx.type === 'income' ? '+' : '-'}{tx.amount.toLocaleString()}원
+                    </td>
+                    <td style={{ padding: '10px', textAlign: 'center' }}>
+                      <button 
+                        onClick={() => deleteTransaction(tx.id)} 
+                        style={{ backgroundColor: 'transparent', color: '#dc2626', border: '1px solid #f87171', borderRadius: '3px', padding: '2px 6px', cursor: 'pointer', fontSize: '11px' }}
+                      >
+                        삭제
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+
+        </div>
+      </div>
+    </div>
+  );
+}
+export default App;
