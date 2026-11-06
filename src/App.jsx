@@ -1,10 +1,24 @@
 import React, { useState, useEffect } from 'react';
+import { initializeApp } from "firebase/app";
+import { getFirestore, collection, addDoc, onSnapshot, query, orderBy } from "firebase/firestore";
+
+// 고객님의 데이터베이스 열쇠입니다!
+const firebaseConfig = {
+  apiKey: "AIzaSyB59ni2RJf1-Qgrblj03r-pPZttpUre9SM",
+  authDomain: "my-budget-d1c6f.firebaseapp.com",
+  databaseURL: "https://my-budget-d1c6f-default-rtdb.firebaseio.com",
+  projectId: "my-budget-d1c6f",
+  storageBucket: "my-budget-d1c6f.firebasestorage.app",
+  messagingSenderId: "498449473274",
+  appId: "1:498449473274:web:37d0d1edbc1a9741577343"
+};
+
+// 파이어베이스 실행
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
 function App() {
-  const [transactions, setTransactions] = useState(() => {
-    const saved = localStorage.getItem('budget_data');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [transactions, setTransactions] = useState([]);
   const [text, setText] = useState('');
   const [amount, setAmount] = useState('');
   const [type, setType] = useState('expense');
@@ -14,27 +28,38 @@ function App() {
   const expenseCategories = ['식비', '교통/차량', '주거/통신', '쇼핑/여가', '기타'];
   const incomeCategories = ['급여', '용돈', '부수입', '기타'];
 
+  // 지출/수입 변경 시 카테고리 기본값 자동 변경
   useEffect(() => {
     if (type === 'expense') setCategory('식비');
     else setCategory('급여');
   }, [type]);
 
+  // 클라우드 데이터베이스에서 내역 실시간으로 불러오기
   useEffect(() => {
-    localStorage.setItem('budget_data', JSON.stringify(transactions));
-  }, [transactions]);
+    const q = query(collection(db, "transactions"), orderBy("date", "desc"));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const txs = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setTransactions(txs);
+    });
+    return () => unsubscribe();
+  }, []);
 
-  const addTransaction = (e) => {
+  // 클라우드 데이터베이스에 내역 추가하기
+  const addTransaction = async (e) => {
     e.preventDefault();
     if (!amount || !category) return;
-    const newTx = {
-      id: Date.now(),
-      text: text || category, // 상세 내용이 없으면 카테고리 이름으로 저장
+    
+    await addDoc(collection(db, "transactions"), {
+      text: text || category,
       category,
       amount: parseFloat(amount),
       type,
       date: new Date().toISOString()
-    };
-    setTransactions([newTx, ...transactions]);
+    });
+    
     setText('');
     setAmount('');
   };
