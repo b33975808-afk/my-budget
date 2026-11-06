@@ -59,7 +59,6 @@ function App() {
     setAmount('');
   };
 
-  // 내역 삭제 함수 추가
   const deleteTransaction = async (id) => {
     await deleteDoc(doc(db, "transactions", id));
   };
@@ -71,77 +70,100 @@ function App() {
   const balance = income - expense;
 
   return (
-    <div style={{ fontFamily: 'sans-serif', padding: '20px', maxWidth: '600px', margin: '0 auto', backgroundColor: '#B3E5FC', minHeight: '100vh', borderRadius: '15px' }}>
-      <div style={{ backgroundColor: '#fff', padding: '20px', borderRadius: '15px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
-        <h1 style={{ textAlign: 'center', color: '#333' }}>나만의 가계부</h1>
+    <div style={{ fontFamily: '맑은 고딕, sans-serif', padding: '30px', maxWidth: '700px', margin: '0 auto', backgroundColor: '#f4f5f7', minHeight: '100vh' }}>
+      <div style={{ backgroundColor: '#fff', border: '1px solid #d1d5db', borderRadius: '4px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
         
-        <div style={{ marginBottom: '20px', textAlign: 'center' }}>
+        {/* 엑셀 스타일 헤더 타이틀 */}
+        <div style={{ backgroundColor: '#107c41', color: '#fff', padding: '15px 20px', fontSize: '18px', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span>📊 나만의 엑셀 가계부</span>
           <input 
             type="month" 
             value={currentMonth} 
             onChange={(e) => setCurrentMonth(e.target.value)} 
-            style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ccc', fontSize: '16px', backgroundColor: '#E1BEE7' }}
+            style={{ padding: '5px 10px', borderRadius: '3px', border: '1px solid #ccc', fontSize: '14px', backgroundColor: '#fff', color: '#333' }}
           />
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px', backgroundColor: '#FFE0B2', padding: '15px', borderRadius: '10px' }}>
-          <div>
-            <h4>수입</h4>
-            <p style={{ color: 'blue', margin: 0, fontWeight: 'bold' }}>+{income.toLocaleString()}원</p>
+        <div style={{ padding: '20px' }}>
+          {/* 요약 카드 */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px', backgroundColor: '#f8f9fa', border: '1px solid #e5e7eb', padding: '15px', borderRadius: '4px' }}>
+            <div>
+              <span style={{ fontSize: '13px', color: '#6b7280' }}>총 수입</span>
+              <p style={{ color: '#047857', margin: '5px 0 0 0', fontSize: '18px', fontWeight: 'bold' }}>+{income.toLocaleString()}원</p>
+            </div>
+            <div style={{ borderLeft: '1px solid #e5e7eb', paddingLeft: '20px' }}>
+              <span style={{ fontSize: '13px', color: '#6b7280' }}>총 지출</span>
+              <p style={{ color: '#dc2626', margin: '5px 0 0 0', fontSize: '18px', fontWeight: 'bold' }}>-{expense.toLocaleString()}원</p>
+            </div>
+            <div style={{ borderLeft: '1px solid #e5e7eb', paddingLeft: '20px' }}>
+              <span style={{ fontSize: '13px', color: '#6b7280' }}>잔액</span>
+              <p style={{ margin: '5px 0 0 0', fontSize: '18px', fontWeight: 'bold', color: balance >= 0 ? '#1f2937' : '#dc2626' }}>{balance.toLocaleString()}원</p>
+            </div>
           </div>
-          <div>
-            <h4>지출</h4>
-            <p style={{ color: 'red', margin: 0, fontWeight: 'bold' }}>-{expense.toLocaleString()}원</p>
-          </div>
-          <div>
-            <h4>잔액</h4>
-            <p style={{ margin: 0, fontWeight: 'bold' }}>{balance.toLocaleString()}원</p>
-          </div>
-        </div>
 
-        <form onSubmit={addTransaction} style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <select value={type} onChange={(e) => setType(e.target.value)} style={{ padding: '10px', borderRadius: '5px', border: '1px solid #ccc', backgroundColor: '#C5E1A5' }}>
-              <option value="expense">지출</option>
-              <option value="income">수입</option>
-            </select>
+          {/* 입력 폼 */}
+          <form onSubmit={addTransaction} style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '25px', backgroundColor: '#f9fafb', padding: '15px', border: '1px solid #e5e7eb', borderRadius: '4px' }}>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <select value={type} onChange={(e) => setType(e.target.value)} style={{ padding: '8px', borderRadius: '3px', border: '1px solid #d1d5db', fontSize: '14px' }}>
+                <option value="expense">지출</option>
+                <option value="income">수입</option>
+              </select>
+              
+              <select value={category} onChange={(e) => setCategory(e.target.value)} style={{ padding: '8px', borderRadius: '3px', border: '1px solid #d1d5db', flex: 1, fontSize: '14px' }}>
+                {type === 'expense' 
+                  ? expenseCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)
+                  : incomeCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)
+                }
+              </select>
+            </div>
             
-            <select value={category} onChange={(e) => setCategory(e.target.value)} style={{ padding: '10px', borderRadius: '5px', border: '1px solid #ccc', flex: 1 }}>
-              {type === 'expense' 
-                ? expenseCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)
-                : incomeCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)
-              }
-            </select>
-          </div>
-          
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <input type="text" placeholder="상세 내용 (안 적어도 됨)" value={text} onChange={(e) => setText(e.target.value)} style={{ flex: 1, padding: '10px', borderRadius: '5px', border: '1px solid #ccc' }} />
-            <input type="number" placeholder="금액" value={amount} onChange={(e) => setAmount(e.target.value)} style={{ width: '120px', padding: '10px', borderRadius: '5px', border: '1px solid #ccc' }} />
-            <button type="submit" style={{ padding: '10px 15px', backgroundColor: '#FFD1DC', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>추가</button>
-          </div>
-        </form>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <input type="text" placeholder="상세 내용 입력" value={text} onChange={(e) => setText(e.target.value)} style={{ flex: 1, padding: '8px', borderRadius: '3px', border: '1px solid #d1d5db', fontSize: '14px' }} />
+              <input type="number" placeholder="금액" value={amount} onChange={(e) => setAmount(e.target.value)} style={{ width: '130px', padding: '8px', borderRadius: '3px', border: '1px solid #d1d5db', fontSize: '14px' }} />
+              <button type="submit" style={{ padding: '8px 20px', backgroundColor: '#107c41', color: '#fff', border: 'none', borderRadius: '3px', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' }}>추가</button>
+            </div>
+          </form>
 
-        <ul style={{ listStyle: 'none', padding: 0 }}>
-          {filteredTransactions.map(tx => (
-            <li key={tx.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px', borderBottom: '1px solid #eee' }}>
-              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                <span style={{ fontSize: '12px', backgroundColor: '#eee', padding: '3px 6px', borderRadius: '4px' }}>{tx.category}</span>
-                <span>{tx.text}</span>
-              </div>
-              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                <span style={{ color: tx.type === 'income' ? 'blue' : 'red', fontWeight: 'bold' }}>
-                  {tx.type === 'income' ? '+' : '-'}{tx.amount.toLocaleString()}원
-                </span>
-                <button 
-                  onClick={() => deleteTransaction(tx.id)} 
-                  style={{ backgroundColor: '#ffcccc', border: 'none', borderRadius: '4px', padding: '4px 8px', cursor: 'pointer', fontSize: '12px' }}
-                >
-                  삭제
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
+          {/* 엑셀 표(Table) 스타일 리스트 */}
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', textAlign: 'left' }}>
+            <thead>
+              <tr style={{ backgroundColor: '#f3f4f6', borderBottom: '2px solid #d1d5db', color: '#374151' }}>
+                <th style={{ padding: '10px', width: '20%' }}>분류</th>
+                <th style={{ padding: '10px', width: '45%' }}>내용</th>
+                <th style={{ padding: '10px', width: '25%', textAlign: 'right' }}>금액</th>
+                <th style={{ padding: '10px', width: '10%', textAlign: 'center' }}>비고</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredTransactions.length === 0 ? (
+                <tr>
+                  <td colSpan="4" style={{ textAlign: 'center', padding: '20px', color: '#9ca3af' }}>내역이 없습니다.</td>
+                </tr>
+              ) : (
+                filteredTransactions.map(tx => (
+                  <tr key={tx.id} style={{ borderBottom: '1px solid #e5e7eb' }}>
+                    <td style={{ padding: '10px' }}>
+                      <span style={{ fontSize: '11px', backgroundColor: '#e5e7eb', padding: '2px 6px', borderRadius: '3px', color: '#374151', fontWeight: 'bold' }}>{tx.category}</span>
+                    </td>
+                    <td style={{ padding: '10px', color: '#1f2937' }}>{tx.text}</td>
+                    <td style={{ padding: '10px', textAlign: 'right', fontWeight: 'bold', color: tx.type === 'income' ? '#047857' : '#dc2626' }}>
+                      {tx.type === 'income' ? '+' : '-'}{tx.amount.toLocaleString()}원
+                    </td>
+                    <td style={{ padding: '10px', textAlign: 'center' }}>
+                      <button 
+                        onClick={() => deleteTransaction(tx.id)} 
+                        style={{ backgroundColor: 'transparent', color: '#dc2626', border: '1px solid #f87171', borderRadius: '3px', padding: '2px 6px', cursor: 'pointer', fontSize: '11px' }}
+                      >
+                        삭제
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+
+        </div>
       </div>
     </div>
   );
