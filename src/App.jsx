@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query, orderBy } from "firebase/firestore";
+import { getFirestore, collection, addDoc, deleteDoc, updateDoc, doc, onSnapshot, query, orderBy } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAVN3D5bM7KfUA-jbuF1fiYd7k-soFPA_4",
@@ -15,210 +15,144 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
+// 오늘 날짜 구하기 (YYYY-MM-DD 형식)
+const getTodayDate = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 function App() {
   const [transactions, setTransactions] = useState([]);
   const [text, setText] = useState('');
   const [amount, setAmount] = useState('');
   const [type, setType] = useState('expense');
   const [category, setCategory] = useState('식비'); 
-  const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [inputDate, setInputDate] = useState(getTodayDate()); // 정확한 날짜 선택
+  const [currentMonth, setCurrentMonth] = useState(getTodayDate().slice(0, 7));
+  
   const [isAllView, setIsAllView] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('전체');
+  const [editId, setEditId] = useState(null); // 수정 모드 상태
 
   const expenseCategories = ['식비', '교통/차량', '주거/통신', '쇼핑/여가', '기타'];
   const incomeCategories = ['급여', '용돈', '부수입', '기타'];
+  
+  // 파이 차트 색상 매핑
+  const expenseColors = { '식비': '#FF6B6B', '교통/차량': '#4ECDC4', '주거/통신': '#45B7D1', '쇼핑/여가': '#F9D56E', '기타': '#FF8C94' };
 
-  useEffect(() => {
-    if (type === 'expense') setCategory('식비');
-    else setCategory('급여');
-  }, [type]);
+  const handleTypeChange = (e) => {
+    const newType = e.target.value;
+    setType(newType);
+    setCategory(newType === 'expense' ? '식비' : '급여');
+  };
 
   useEffect(() => {
     const q = query(collection(db, "transactions"), orderBy("date", "desc"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const txs = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+      const txs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setTransactions(txs);
     });
     return () => unsubscribe();
   }, []);
 
-  const addTransaction = async (e) => {
+  // 1. 추가 및 수정 기능 (통합)
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!amount || !category) return;
+    if (!amount || !category || !inputDate) return;
     
-    const targetDate = isAllView 
-      ? new Date().toISOString() 
-      : `${currentMonth}-01T09:00:00.000Z`;
-
-    await addDoc(collection(db, "transactions"), {
+    const txData = {
       text: text || category,
       category,
       amount: parseFloat(amount),
       type,
-      date: targetDate
-    });
+      date: inputDate // 직접 지정한 날짜로 저장
+    };
+
+    if (editId) {
+      await updateDoc(doc(db, "transactions", editId), txData);
+      setEditId(null);
+    } else {
+      await addDoc(collection(db, "transactions"), txData);
+    }
     
     setText('');
     setAmount('');
   };
 
+  // 2. 삭제 기능
   const deleteTransaction = async (id) => {
-    await deleteDoc(doc(db, "transactions", id));
+    if(window.confirm('정말 삭제하시겠습니까?')) {
+      await deleteDoc(doc(db, "transactions", id));
+    }
   };
 
-  let filteredTransactions = isAllView 
-    ? transactions 
-    : transactions.filter(tx => tx.date.startsWith(currentMonth));
+  // 3. 수정 모드 진입 기능
+  const handleEdit = (tx) => {
+    setEditId(tx.id);
+    setType(tx.type);
+    setCategory(tx.category);
+    setText(tx.text);
+    setAmount(tx.amount);
+    setInputDate(tx.date);
+    // 수정하는 항목의 날짜에 맞게 월 필터도 자동으로 이동
+    if(!isAllView) setCurrentMonth(tx.date.slice(0, 7));
+  };
 
+  // 4. 엑셀(CSV) 저장 기능
+  const exportToCSV = () => {
+    const headers = ['날짜', '구분', '분류', '내용', '금액(원)'];
+    const csvData = displayedTransactions.map(tx => 
+      `${tx.date},${tx.type === 'income' ? '수입' : '지출'},${tx.category},"${tx.text}",${tx.amount}`
+    );
+    const bom = '\uFEFF'; // 한글 깨짐 방지
+    const csvContent = bom + headers.join(',') + '\n' + csvData.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.setAttribute('download', `가계부_내역_${isAllView ? '전체' : currentMonth}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // 데이터 필터링
+  let displayedTransactions = isAllView ? transactions : transactions.filter(tx => tx.date.startsWith(currentMonth));
   if (selectedCategory !== '전체') {
-    filteredTransactions = filteredTransactions.filter(tx => tx.category === selectedCategory);
+    displayedTransactions = displayedTransactions.filter(tx => tx.category === selectedCategory);
   }
   
-  const income = filteredTransactions.filter(tx => tx.type === 'income').reduce((acc, curr) => acc + curr.amount, 0);
-  const expense = filteredTransactions.filter(tx => tx.type === 'expense').reduce((acc, curr) => acc + curr.amount, 0);
+  const income = displayedTransactions.filter(tx => tx.type === 'income').reduce((acc, curr) => acc + curr.amount, 0);
+  const expense = displayedTransactions.filter(tx => tx.type === 'expense').reduce((acc, curr) => acc + curr.amount, 0);
   const balance = income - expense;
 
   const categoryTotals = expenseCategories.reduce((acc, cat) => {
-    acc[cat] = filteredTransactions
-      .filter(tx => tx.type === 'expense' && tx.category === cat)
-      .reduce((sum, curr) => sum + curr.amount, 0);
+    acc[cat] = displayedTransactions.filter(tx => tx.type === 'expense' && tx.category === cat).reduce((sum, curr) => sum + curr.amount, 0);
     return acc;
   }, {});
 
+  // 파이 차트 CSS 계산 로직
+  const totalExpenseForChart = expenseCategories.reduce((sum, cat) => sum + categoryTotals[cat], 0);
+  let accumulated = 0;
+  const conicParts = expenseCategories.map(cat => {
+    const amt = categoryTotals[cat];
+    if (amt === 0) return '';
+    const percent = (amt / totalExpenseForChart) * 100;
+    const start = accumulated;
+    const end = accumulated + percent;
+    accumulated = end;
+    return `${expenseColors[cat]} ${start}% ${end}%`;
+  }).filter(p => p !== '').join(', ');
+  const pieBackground = totalExpenseForChart > 0 ? `conic-gradient(${conicParts})` : '#e5e7eb';
+
   return (
-    <div style={{ fontFamily: '맑은 고딕, sans-serif', padding: '10px', maxWidth: '700px', margin: '0 auto', backgroundColor: '#f4f5f7', minHeight: '100vh', boxSizing: 'border-box' }}>
+    <div style={{ fontFamily: '맑은 고딕, sans-serif', padding: '10px', maxWidth: '750px', margin: '0 auto', backgroundColor: '#f4f5f7', minHeight: '100vh', boxSizing: 'border-box' }}>
       <div style={{ backgroundColor: '#fff', border: '1px solid #d1d5db', borderRadius: '4px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
         
-        {/* 타이틀 & 기간 선택 */}
+        {/* 상단 타이틀 바 */}
         <div style={{ backgroundColor: '#107c41', color: '#fff', padding: '12px 15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
           <span style={{ fontSize: '16px', fontWeight: 'bold' }}>📊 가계부</span>
           <div style={{ display: 'flex', gap: '5px', alignItems: 'center', flexWrap: 'wrap' }}>
-            <input 
-              type="month" 
-              value={currentMonth} 
-              disabled={isAllView}
-              onChange={(e) => setCurrentMonth(e.target.value)} 
-              style={{ padding: '6px 8px', borderRadius: '3px', border: '1px solid #ccc', fontSize: '13px', backgroundColor: isAllView ? '#e5e7eb' : '#fff', color: '#333' }}
-            />
-            <button 
-              onClick={() => setIsAllView(!isAllView)}
-              style={{ padding: '6px 10px', backgroundColor: isAllView ? '#047857' : '#ffffff', color: isAllView ? '#fff' : '#107c41', border: '1px solid #fff', borderRadius: '3px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px', whiteSpace: 'nowrap' }}
-            >
-              {isAllView ? '전체 보기 🔍' : '전체 보기'}
-            </button>
-          </div>
-        </div>
-
-        <div style={{ padding: '15px' }}>
-          {/* 요약 카드 (모바일 최적화) */}
-          <div style={{ display: 'flex', width: '100%', backgroundColor: '#f8f9fa', border: '1px solid #e5e7eb', borderRadius: '4px', marginBottom: '15px' }}>
-            <div style={{ flex: 1, padding: '10px 5px', textAlign: 'center', borderRight: '1px solid #e5e7eb' }}>
-              <span style={{ fontSize: '11px', color: '#6b7280' }}>총 수입</span>
-              <p style={{ color: '#047857', margin: '5px 0 0 0', fontSize: '15px', fontWeight: 'bold', wordBreak: 'break-all' }}>+{income.toLocaleString()}</p>
-            </div>
-            <div style={{ flex: 1, padding: '10px 5px', textAlign: 'center', borderRight: '1px solid #e5e7eb' }}>
-              <span style={{ fontSize: '11px', color: '#6b7280' }}>총 지출</span>
-              <p style={{ color: '#dc2626', margin: '5px 0 0 0', fontSize: '15px', fontWeight: 'bold', wordBreak: 'break-all' }}>-{expense.toLocaleString()}</p>
-            </div>
-            <div style={{ flex: 1, padding: '10px 5px', textAlign: 'center' }}>
-              <span style={{ fontSize: '11px', color: '#6b7280' }}>잔액</span>
-              <p style={{ margin: '5px 0 0 0', fontSize: '15px', fontWeight: 'bold', color: balance >= 0 ? '#1f2937' : '#dc2626', wordBreak: 'break-all' }}>{balance.toLocaleString()}</p>
-            </div>
-          </div>
-
-          {/* 항목별 조회 필터 바 */}
-          <div style={{ marginBottom: '15px', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px', backgroundColor: '#f9fafb', padding: '10px', border: '1px solid #e5e7eb', borderRadius: '4px' }}>
-            <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#374151' }}>🔍 모아보기:</span>
-            <select 
-              value={selectedCategory} 
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              style={{ padding: '6px', borderRadius: '3px', border: '1px solid #d1d5db', fontSize: '13px', flex: 1, backgroundColor: '#fff', minWidth: '120px' }}
-            >
-              <option value="전체">모든 항목 (전체)</option>
-              <optgroup label="--- 지출 ---">
-                {expenseCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-              </optgroup>
-              <optgroup label="--- 수입 ---">
-                {incomeCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-              </optgroup>
-            </select>
-          </div>
-
-          {/* 입력 폼 (모바일 최적화) */}
-          <form onSubmit={addTransaction} style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px', backgroundColor: '#f9fafb', padding: '12px', border: '1px solid #e5e7eb', borderRadius: '4px' }}>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <select value={type} onChange={(e) => setType(e.target.value)} style={{ padding: '8px', borderRadius: '3px', border: '1px solid #d1d5db', fontSize: '13px', flex: 1 }}>
-                <option value="expense">지출</option>
-                <option value="income">수입</option>
-              </select>
-              <select value={category} onChange={(e) => setCategory(e.target.value)} style={{ padding: '8px', borderRadius: '3px', border: '1px solid #d1d5db', flex: 2, fontSize: '13px' }}>
-                {type === 'expense' 
-                  ? expenseCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)
-                  : incomeCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)
-                }
-              </select>
-            </div>
-            
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              <input type="text" placeholder="상세 내용 입력" value={text} onChange={(e) => setText(e.target.value)} style={{ flex: '1 1 100%', padding: '8px', borderRadius: '3px', border: '1px solid #d1d5db', fontSize: '13px', boxSizing: 'border-box' }} />
-              <input type="number" placeholder="금액" value={amount} onChange={(e) => setAmount(e.target.value)} style={{ flex: 2, minWidth: '100px', padding: '8px', borderRadius: '3px', border: '1px solid #d1d5db', fontSize: '13px', boxSizing: 'border-box' }} />
-              <button type="submit" style={{ flex: 1, minWidth: '60px', padding: '8px 10px', backgroundColor: '#107c41', color: '#fff', border: 'none', borderRadius: '3px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>추가</button>
-            </div>
-          </form>
-
-          {/* 내역 리스트 테이블 (가로 스크롤 허용) */}
-          <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', margin: '0 -15px', padding: '0 15px' }}>
-            <table style={{ width: '100%', minWidth: '360px', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
-              <thead>
-                <tr style={{ backgroundColor: '#f3f4f6', borderBottom: '2px solid #d1d5db', color: '#374151' }}>
-                  {isAllView && <th style={{ padding: '8px 5px', width: '60px', whiteSpace: 'nowrap' }}>월</th>}
-                  <th style={{ padding: '8px 5px', width: '50px', whiteSpace: 'nowrap' }}>분류</th>
-                  <th style={{ padding: '8px 5px', minWidth: '100px' }}>내용</th>
-                  <th style={{ padding: '8px 5px', width: '80px', textAlign: 'right', whiteSpace: 'nowrap' }}>금액</th>
-                  <th style={{ padding: '8px 5px', width: '40px', textAlign: 'center', whiteSpace: 'nowrap' }}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredTransactions.length === 0 ? (
-                  <tr>
-                    <td colSpan={isAllView ? "5" : "4"} style={{ textAlign: 'center', padding: '20px', color: '#9ca3af' }}>내역이 없습니다.</td>
-                  </tr>
-                ) : (
-                  filteredTransactions.map(tx => (
-                    <tr key={tx.id} style={{ borderBottom: '1px solid #e5e7eb' }}>
-                      {isAllView && (
-                        <td style={{ padding: '8px 5px', color: '#4b5563', fontSize: '12px', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
-                          {tx.date ? tx.date.slice(5, 7) + '월' : '-'}
-                        </td>
-                      )}
-                      <td style={{ padding: '8px 5px' }}>
-                        <span style={{ fontSize: '11px', backgroundColor: '#e5e7eb', padding: '2px 4px', borderRadius: '3px', color: '#374151', fontWeight: 'bold', whiteSpace: 'nowrap' }}>{tx.category}</span>
-                      </td>
-                      <td style={{ padding: '8px 5px', color: '#1f2937', wordBreak: 'break-all' }}>{tx.text}</td>
-                      <td style={{ padding: '8px 5px', textAlign: 'right', fontWeight: 'bold', whiteSpace: 'nowrap', color: tx.type === 'income' ? '#047857' : '#dc2626' }}>
-                        {tx.type === 'income' ? '+' : '-'}{tx.amount.toLocaleString()}
-                      </td>
-                      <td style={{ padding: '8px 5px', textAlign: 'center' }}>
-                        <button 
-                          onClick={() => deleteTransaction(tx.id)} 
-                          style={{ backgroundColor: 'transparent', color: '#dc2626', border: '1px solid #f87171', borderRadius: '3px', padding: '2px 4px', cursor: 'pointer', fontSize: '11px', whiteSpace: 'nowrap' }}
-                        >
-                          삭제
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-
-        </div>
-      </div>
-    </div>
-  );
-}
-export default App;
+            <button onClick={exportToCSV} style={{ padding: '6px 10px', backgroundColor: '#fff',
