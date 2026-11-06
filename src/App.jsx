@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 
 function App() {
@@ -9,7 +8,16 @@ function App() {
   const [text, setText] = useState('');
   const [amount, setAmount] = useState('');
   const [type, setType] = useState('expense');
-  const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
+  const [category, setCategory] = useState('식비'); 
+  const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().slice(0, 7));
+
+  const expenseCategories = ['식비', '교통/차량', '주거/통신', '쇼핑/여가', '기타'];
+  const incomeCategories = ['급여', '용돈', '부수입', '기타'];
+
+  useEffect(() => {
+    if (type === 'expense') setCategory('식비');
+    else setCategory('급여');
+  }, [type]);
 
   useEffect(() => {
     localStorage.setItem('budget_data', JSON.stringify(transactions));
@@ -17,10 +25,11 @@ function App() {
 
   const addTransaction = (e) => {
     e.preventDefault();
-    if (!text || !amount) return;
+    if (!amount || !category) return;
     const newTx = {
       id: Date.now(),
-      text,
+      text: text || category, // 상세 내용이 없으면 카테고리 이름으로 저장
+      category,
       amount: parseFloat(amount),
       type,
       date: new Date().toISOString()
@@ -65,20 +74,35 @@ function App() {
           </div>
         </div>
 
-        <form onSubmit={addTransaction} style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-          <select value={type} onChange={(e) => setType(e.target.value)} style={{ padding: '10px', borderRadius: '5px', border: '1px solid #ccc', backgroundColor: '#C5E1A5' }}>
-            <option value="expense">지출</option>
-            <option value="income">수입</option>
-          </select>
-          <input type="text" placeholder="내용" value={text} onChange={(e) => setText(e.target.value)} style={{ flex: 1, padding: '10px', borderRadius: '5px', border: '1px solid #ccc' }} />
-          <input type="number" placeholder="금액" value={amount} onChange={(e) => setAmount(e.target.value)} style={{ width: '100px', padding: '10px', borderRadius: '5px', border: '1px solid #ccc' }} />
-          <button type="submit" style={{ padding: '10px 15px', backgroundColor: '#FFD1DC', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>추가</button>
+        <form onSubmit={addTransaction} style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <select value={type} onChange={(e) => setType(e.target.value)} style={{ padding: '10px', borderRadius: '5px', border: '1px solid #ccc', backgroundColor: '#C5E1A5' }}>
+              <option value="expense">지출</option>
+              <option value="income">수입</option>
+            </select>
+            
+            <select value={category} onChange={(e) => setCategory(e.target.value)} style={{ padding: '10px', borderRadius: '5px', border: '1px solid #ccc', flex: 1 }}>
+              {type === 'expense' 
+                ? expenseCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)
+                : incomeCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)
+              }
+            </select>
+          </div>
+          
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <input type="text" placeholder="상세 내용 (안 적어도 됨)" value={text} onChange={(e) => setText(e.target.value)} style={{ flex: 1, padding: '10px', borderRadius: '5px', border: '1px solid #ccc' }} />
+            <input type="number" placeholder="금액" value={amount} onChange={(e) => setAmount(e.target.value)} style={{ width: '120px', padding: '10px', borderRadius: '5px', border: '1px solid #ccc' }} />
+            <button type="submit" style={{ padding: '10px 15px', backgroundColor: '#FFD1DC', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>추가</button>
+          </div>
         </form>
 
         <ul style={{ listStyle: 'none', padding: 0 }}>
           {filteredTransactions.map(tx => (
             <li key={tx.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px', borderBottom: '1px solid #eee' }}>
-              <span>{tx.text}</span>
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <span style={{ fontSize: '12px', backgroundColor: '#eee', padding: '3px 6px', borderRadius: '4px' }}>{tx.category}</span>
+                <span>{tx.text}</span>
+              </div>
               <span style={{ color: tx.type === 'income' ? 'blue' : 'red', fontWeight: 'bold' }}>
                 {tx.type === 'income' ? '+' : '-'}{tx.amount.toLocaleString()}원
               </span>
